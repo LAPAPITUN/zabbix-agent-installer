@@ -18,11 +18,15 @@ install_zabbix_agent() {
   curl -fsSL https://repo.zabbix.com/zabbix-official-repo.key | gpg --dearmor -o /usr/share/keyrings/zabbix-archive-keyring.gpg
   local codename version
   codename="$(lsb_release -cs)"
-  if [[ "$codename" == "noble" ]]; then
-    version="7.0"
-  else
-    version="6.4"
-  fi
+  case "$codename" in
+    noble|resolute)
+      version="7.0"
+      [[ "$codename" == "resolute" ]] && codename="noble"
+      ;;
+    *)
+      version="6.4"
+      ;;
+  esac
   echo "deb [signed-by=/usr/share/keyrings/zabbix-archive-keyring.gpg] http://repo.zabbix.com/zabbix/$version/ubuntu $codename main" > /etc/apt/sources.list.d/zabbix.list
   echo "deb-src [signed-by=/usr/share/keyrings/zabbix-archive-keyring.gpg] http://repo.zabbix.com/zabbix/$version/ubuntu $codename main" >> /etc/apt/sources.list.d/zabbix.list
   apt-get update -y
