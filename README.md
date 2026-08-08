@@ -5,9 +5,9 @@ One-shot installer for Ubuntu. Installs `zabbix-agent`, writes a fixed `zabbix_a
 ## Usage
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LAPAPITUN/zabbix-agent-installer/main/install_zabbix_agent.sh -o install_zabbix_agent.sh
+curl -fsSL https://raw.githubusercontent.com/LAPAPITUN/zabbix-agent-installer/master/install_zabbix_agent.sh -o install_zabbix_agent.sh
 chmod +x install_zabbix_agent.sh
-sudo ./install_zabbix_agent.sh
+sudo bash ./install_zabbix_agent.sh
 ```
 
 ## What it does
