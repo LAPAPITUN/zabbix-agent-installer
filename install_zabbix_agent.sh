@@ -43,10 +43,15 @@ configure_zabbix_agent() {
   if ! read -r server < /dev/tty 2>/dev/null; then
     server=""
   fi
-  server="${server:-103.74.94.90}"
+  server="${server:-}"
+
+  local server_line="Server=127.0.0.1"
+  if [[ -n "$server" ]]; then
+    server_line="Server=$server,127.0.0.1"
+  fi
 
   cat > "$conf" <<CONF
-Server=$server,127.0.0.1
+$server_line
 StartAgents=3
 PidFile=/var/run/zabbix/zabbix_agentd.pid
 LogType=system
