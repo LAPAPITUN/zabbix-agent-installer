@@ -39,6 +39,18 @@ CONF
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Config written."
 }
 
+open_zabbix_port() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Opening port 10050/tcp for Zabbix..."
+  if command -v ufw >/dev/null 2>&1; then
+    ufw allow 10050/tcp comment 'Zabbix Agent' || true
+  fi
+  if command -v firewall-cmd >/dev/null 2>&1; then
+    firewall-cmd --permanent --add-port=10050/tcp || true
+    firewall-cmd --reload || true
+  fi
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Port 10050/tcp open step done."
+}
+
 restart_zabbix_agent() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Restarting zabbix-agent..."
   systemctl restart zabbix-agent || {
@@ -58,6 +70,7 @@ show_logs() {
 main() {
   install_zabbix_agent
   configure_zabbix_agent
+  open_zabbix_port
   restart_zabbix_agent
   show_logs
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Zabbix Agent installer finished ==="
