@@ -1,6 +1,6 @@
 # Zabbix Agent Installer
 
-One-shot installer for Ubuntu. Installs `zabbix-agent`, writes a fixed `zabbix_agentd.conf`, restarts the service, and saves a full log.
+One-shot installer for Ubuntu. Installs `zabbix-agent`, writes `zabbix_agentd.conf`, opens port `10050/tcp`, restarts the service, and saves a full log.
 
 ## Usage
 
@@ -12,15 +12,17 @@ sudo bash ./install_zabbix_agent.sh
 
 ## What it does
 
+- adds official Zabbix repo
 - installs `zabbix-agent`
-- overwrites `/etc/zabbix/zabbix_agentd.conf`
+- opens port `10050/tcp` (`ufw` / `firewalld`)
+- writes `/etc/zabbix/zabbix_agentd.conf`
 - restarts `zabbix-agent`
 - writes full output log to `/var/log/zabbix_agent_install.log`
 
 ## Config written
 
 ```ini
-Server=103.74.94.90,127.0.0.1
+Server=<SERVER_ADDRESS>,127.0.0.1
 StartAgents=3
 PidFile=/var/run/zabbix/zabbix_agentd.pid
 LogType=system
@@ -34,9 +36,16 @@ DenyKey=system.run[*]
 UserParameter=timeweb_config_version,echo 127
 ```
 
+`<SERVER_ADDRESS>` — адрес основного Zabbix-сервера, который запрашивается у пользователя во время установки. По умолчанию используется `103.74.94.90`.
+
+## Supported Ubuntu versions
+
+- `noble` / `resolute` — Zabbix 7.0
+- остальные — Zabbix 6.4
+
 ## Log
 
-After the run, log is available at:
+After the run:
 
 ```bash
 less /var/log/zabbix_agent_install.log
