@@ -39,7 +39,10 @@ configure_zabbix_agent() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Writing config to $conf ..."
 
   local server
-  read -r -p "Введи адрес сервера: " server < /dev/tty || true
+  printf "Введи адрес сервера: " > /dev/tty || true
+  if ! read -r server < /dev/tty 2>/dev/null; then
+    server=""
+  fi
   server="${server:-103.74.94.90}"
 
   cat > "$conf" <<CONF
