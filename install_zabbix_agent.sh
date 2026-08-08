@@ -14,10 +14,15 @@ fi
 install_zabbix_agent() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Adding official Zabbix repo..."
   apt-get update -y
-  apt-get install -y curl gnupg
+  apt-get install -y curl gnupg lsb-release
   curl -fsSL https://repo.zabbix.com/zabbix-official-repo.key | gpg --dearmor -o /usr/share/keyrings/zabbix-archive-keyring.gpg
-  echo "deb [signed-by=/usr/share/keyrings/zabbix-archive-keyring.gpg] http://repo.zabbix.com/zabbix/$(lsb_release -cs)/ $(lsb_release -cs) main" > /etc/apt/sources.list.d/zabbix.list
-  echo "deb-src [signed-by=/usr/share/keyrings/zabbix-archive-keyring.gpg] http://repo.zabbix.com/zabbix/$(lsb_release -cs)/ $(lsb_release -cs) main" >> /etc/apt/sources.list.d/zabbix.list
+  local codename
+  codename="$(lsb_release -cs)"
+  if [[ "$codename" == "noble" ]]; then
+    codename="jammy"
+  fi
+  echo "deb [signed-by=/usr/share/keyrings/zabbix-archive-keyring.gpg] http://repo.zabbix.com/zabbix/6.4/ubuntu $codename main" > /etc/apt/sources.list.d/zabbix.list
+  echo "deb-src [signed-by=/usr/share/keyrings/zabbix-archive-keyring.gpg] http://repo.zabbix.com/zabbix/6.4/ubuntu $codename main" >> /etc/apt/sources.list.d/zabbix.list
   apt-get update -y
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing zabbix-agent..."
   apt-get install -y zabbix-agent
