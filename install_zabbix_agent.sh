@@ -38,8 +38,12 @@ configure_zabbix_agent() {
   local conf="/etc/zabbix/zabbix_agentd.conf"
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Writing config to $conf ..."
 
-  cat > "$conf" <<'CONF'
-Server=103.74.94.90,127.0.0.1
+  local server
+  read -r -p "Введи адрес сервера: " server
+  server="${server:-103.74.94.90}"
+
+  cat > "$conf" <<CONF
+Server=$server,127.0.0.1
 StartAgents=3
 PidFile=/var/run/zabbix/zabbix_agentd.pid
 LogType=system
