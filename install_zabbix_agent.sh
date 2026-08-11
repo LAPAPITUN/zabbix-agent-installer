@@ -4,9 +4,8 @@ export DEBIAN_FRONTEND=noninteractive
 
 LOGFILE="/var/log/zabbix_agent_install.log"
 mkdir -p "$(dirname "$LOGFILE")"
-exec > >(tee -a "$LOGFILE") 2>&1
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Zabbix Agent installer started ==="
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Zabbix Agent installer started ===" | tee -a "$LOGFILE"
 
 if [[ $EUID -ne 0 ]]; then
   echo "ERROR: Script must be run as root (current EUID=$EUID)"
@@ -14,13 +13,13 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 install_zabbix_agent() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Removing external Zabbix repos..."
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Removing external Zabbix repos..." | tee -a "$LOGFILE"
   rm -f /etc/apt/sources.list.d/zabbix.list
   rm -f /etc/apt/sources.list.d/zabbix-official-repo.list
   rm -f /etc/apt/sources.list.d/timeweb-zabbix.list
   rm -f /usr/share/keyrings/zabbix-archive-keyring.gpg
 
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting apt timeouts..."
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Setting apt timeouts..." | tee -a "$LOGFILE"
   cat > /etc/apt/apt.conf.d/99timeouts <<'APTEOF'
 Acquire::http::Timeout "10";
 Acquire::https::Timeout "10";
@@ -28,26 +27,25 @@ Acquire::http::Pipeline-Depth "0";
 Acquire::http::No-Cache "true";
 APTEOF
 
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Updating packages..."
-  apt-get update -qq --allow-releaseinfo-change -o Acquire::Retries=2 || echo "apt-get update finished with errors, continuing..."
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Updating packages..." | tee -a "$LOGFILE"
+  apt-get update -qq --allow-releaseinfo-change -o Acquire::Retries=2 >> "$LOGFILE" 2>&1 || echo "apt-get update finished with errors, continuing..." | tee -a "$LOGFILE"
 
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing zabbix-agent from system repos..."
-  apt-get install -y --no-install-recommends zabbix-agent zabbix-sender sudo
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing zabbix-agent from system repos..." | tee -a "$LOGFILE"
+  apt-get install -y --no-install-recommends zabbix-agent zabbix-sender sudo >> "$LOGFILE" 2>&1
 }
 
 configure_zabbix_agent() {
   local conf="/etc/zabbix/zabbix_agentd.conf"
 
-  local server
-  printf "Введите IP Zabbix Server: " > /dev/tty || true
-  if ! read -r server < /dev/tty 2>/dev/null; then
-    server=""
-  fi
+  local server=""
+  printf "Введите IP Zabbix Server: " > /dev/tty 2>/dev/null || true
+  read -r server < /dev/tty 2>/dev/null || server=""
+  server="${server:-}"
 
   local hostname
   hostname="$(hostname -f 2>/dev/null || hostname)"
 
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Writing config to $conf ..."
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Writing config to $conf ..." | tee -a "$LOGFILE"
 
   cat > "$conf" <<CONF
 Server=${server:-127.0.0.1},127.0.0.1
@@ -66,20 +64,18 @@ Timeout=30
 AllowKey=system.run[*]
 CONF
 
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Config written."
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Hostname: ${hostname}"
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Server: ${server:-127.0.0.1}"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Config written." | tee -a "$LOGFILE"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Hostname: ${hostname}" | tee -a "$LOGFILE"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Server: ${server:-127.0.0.1}" | tee -a "$LOGFILE"
 
   usermod -aG docker zabbix 2>/dev/null || true
 
-  printf "Установить скрипты мониторинга WireGuard (wg-v2-peer-*)? (y/N): " > /dev/tty || true
-  local install_wg
-  if ! read -r install_wg < /dev/tty 2>/dev/null; then
-    install_wg=""
-  fi
+  local install_wg=""
+  printf "Установить скрипты мониторинга WireGuard (wg-v2-peer-*)? (y/N): " > /dev/tty 2>/dev/null || true
+  read -r install_wg < /dev/tty 2>/dev/null || install_wg=""
 
   if [[ "${install_wg:-}" =~ ^[Yy]$ ]]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WG scripts..."
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WG scripts..." | tee -a "$LOGFILE"
     mkdir -p /usr/local/bin
 
     cat > /usr/local/bin/wg-v2-peer-discovery.sh <<'WGEOF'
@@ -117,34 +113,34 @@ UserParameter=wg.peer.age[*],sudo -u zabbix /usr/local/bin/wg-v2-peer-age.sh \$1
 UserParameter=wg.peer.traffic[*],sudo -u zabbix /usr/local/bin/wg-v2-peer-traffic.sh \$1
 EOF
 
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WG scripts installed."
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WG scripts installed." | tee -a "$LOGFILE"
   else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WG scripts skipped."
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WG scripts skipped." | tee -a "$LOGFILE"
   fi
 }
 
 open_zabbix_port() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Opening port 10050/tcp for Zabbix..."
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Opening port 10050/tcp for Zabbix..." | tee -a "$LOGFILE"
   if command -v ufw >/dev/null 2>&1; then
-    ufw allow 10050/tcp comment 'Zabbix Agent' || true
+    ufw allow 10050/tcp comment 'Zabbix Agent' >> "$LOGFILE" 2>&1 || true
   fi
   if command -v firewall-cmd >/dev/null 2>&1; then
-    firewall-cmd --permanent --add-port=10050/tcp || true
-    firewall-cmd --reload || true
+    firewall-cmd --permanent --add-port=10050/tcp >> "$LOGFILE" 2>&1 || true
+    firewall-cmd --reload >> "$LOGFILE" 2>&1 || true
   fi
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Port 10050/tcp open step done."
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Port 10050/tcp open step done." | tee -a "$LOGFILE"
 }
 
 restart_zabbix_agent() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Restarting zabbix-agent..."
-  systemctl enable --now zabbix-agent 2>/dev/null || systemctl restart zabbix-agent || true
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Service status:"
-  systemctl is-active zabbix-agent || true
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Restarting zabbix-agent..." | tee -a "$LOGFILE"
+  systemctl enable --now zabbix-agent >> "$LOGFILE" 2>&1 || systemctl restart zabbix-agent >> "$LOGFILE" 2>&1 || true
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Service status:" | tee -a "$LOGFILE"
+  systemctl is-active zabbix-agent | tee -a "$LOGFILE" || true
 }
 
 show_logs() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Installation log (last 200 lines) ==="
-  tail -n 200 "$LOGFILE" 2>/dev/null || true
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Installation log (last 200 lines) ===" | tee -a "$LOGFILE"
+  tail -n 200 "$LOGFILE" 2>/dev/null | tee -a "$LOGFILE" || true
 }
 
 main() {
@@ -153,7 +149,7 @@ main() {
   open_zabbix_port
   restart_zabbix_agent
   show_logs
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Zabbix Agent installer finished ==="
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Zabbix Agent installer finished ===" | tee -a "$LOGFILE"
 }
 
 main "$@"
