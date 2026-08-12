@@ -115,14 +115,19 @@ configure_zabbix_agent() {
     server="${server:-}"
   fi
 
+  if [ -z "$server" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Zabbix server IP is required. Set ZBX_SERVER or run interactively." | tee -a "$LOGFILE"
+    exit 1
+  fi
+
   local hostname
   hostname="$(hostname -f 2>/dev/null || hostname)"
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Writing config to $conf ..." | tee -a "$LOGFILE"
 
   cat > "$conf" <<CONF
-Server=${server:-127.0.0.1},127.0.0.1
-ServerActive=${server:-127.0.0.1}
+Server=${server},127.0.0.1
+ServerActive=${server}
 Hostname=${hostname}
 StartAgents=3
 PidFile=/var/run/zabbix/zabbix_agentd.pid
@@ -139,7 +144,7 @@ CONF
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Config written." | tee -a "$LOGFILE"
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Hostname: ${hostname}" | tee -a "$LOGFILE"
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Server: ${server:-127.0.0.1}" | tee -a "$LOGFILE"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Server: ${server}" | tee -a "$LOGFILE"
 
   usermod -aG docker zabbix 2>/dev/null || true
 
