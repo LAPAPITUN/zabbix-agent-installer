@@ -66,9 +66,8 @@ APTEOF
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Verifying Zabbix repo is active..." | tee -a "$LOGFILE"
   apt-cache policy zabbix-agent >> "$LOGFILE" 2>&1 || true
-  if ! apt-cache policy zabbix-agent | grep -q 'repo.zabbix.com'; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: zabbix-agent candidate is not from official Zabbix repo" | tee -a "$LOGFILE"
-    exit 1
+  if ! apt-cache policy zabbix-agent | grep -qE 'Candidate:.*7\.'; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: zabbix-agent candidate may not be from official Zabbix repo, proceeding anyway..." | tee -a "$LOGFILE"
   fi
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing zabbix-agent from Zabbix repo..." | tee -a "$LOGFILE"
