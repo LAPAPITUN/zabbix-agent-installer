@@ -46,15 +46,27 @@ APTEOF
 
   if [ -n "$release_url" ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing official Zabbix repo..." | tee -a "$LOGFILE"
-    curl -fsSL "$release_url" -o /tmp/zabbix-release.deb >> "$LOGFILE" 2>&1 || true
-    if [ -f /tmp/zabbix-release.deb ]; then
-      dpkg -i /tmp/zabbix-release.deb >> "$LOGFILE" 2>&1 || true
-      rm -f /tmp/zabbix-release.deb
+    curl -fsSL "$release_url" -o /tmp/zabbix-release.deb >> "$LOGFILE" 2>&1
+    if [ ! -f /tmp/zabbix-release.deb ]; then
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: failed to download Zabbix repo package" | tee -a "$LOGFILE"
+      exit 1
     fi
+    dpkg -i /tmp/zabbix-release.deb >> "$LOGFILE" 2>&1
+    rm -f /tmp/zabbix-release.deb
+  else
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: unsupported Ubuntu codename: ${codename}" | tee -a "$LOGFILE"
+    exit 1
   fi
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Updating packages..." | tee -a "$LOGFILE"
   apt-get update -qq --allow-releaseinfo-change -o Acquire::Retries=2 >> "$LOGFILE" 2>&1 || echo "apt-get update finished with errors, continuing..." | tee -a "$LOGFILE"
+
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Verifying Zabbix repo is active..." | tee -a "$LOGFILE"
+  apt-cache policy zabbix-agent >> "$LOGFILE" 2>&1 || true
+  if ! apt-cache policy zabbix-agent | grep -q 'repo.zabbix.com'; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: zabbix-agent candidate is not from official Zabbix repo" | tee -a "$LOGFILE"
+    exit 1
+  fi
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing zabbix-agent from Zabbix repo..." | tee -a "$LOGFILE"
   apt-get install -y --no-install-recommends zabbix-agent zabbix-sender sudo >> "$LOGFILE" 2>&1
@@ -163,6 +175,13 @@ restart_zabbix_agent() {
   systemctl enable --now zabbix-agent >> "$LOGFILE" 2>&1 || systemctl restart zabbix-agent >> "$LOGFILE" 2>&1 || true
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Service status:" | tee -a "$LOGFILE"
   systemctl is-active zabbix-agent | tee -a "$LOGFILE" || true
+
+  local ver
+  ver="$(zabbix_agentd -V 2>/dev/null | head -1 | awk '{print $4}' || echo unknown)"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installed zabbix-agent version: ${ver}" | tee -a "$LOGFILE"
+  if [ "$ver" != "unknown" ] && [ "$ver" != "5.0.17" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Upgrade to newer version confirmed." | tee -a "$LOGFILE"
+  fi
 }
 
 show_logs() {
