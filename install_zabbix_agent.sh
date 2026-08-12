@@ -27,10 +27,36 @@ Acquire::http::Pipeline-Depth "0";
 Acquire::http::No-Cache "true";
 APTEOF
 
+  local codename
+  codename="$(lsb_release -sc 2>/dev/null || echo unknown)"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Detected Ubuntu codename: ${codename}" | tee -a "$LOGFILE"
+
+  local release_url=""
+  case "$codename" in
+    noble)
+      release_url="https://repo.zabbix.com/zabbix/7.4/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.4-1+ubuntu24.04_all.deb"
+      ;;
+    jammy|oracular)
+      release_url="https://repo.zabbix.com/zabbix/7.4/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.4-1+ubuntu22.04_all.deb"
+      ;;
+    *)
+      release_url="https://repo.zabbix.com/zabbix/7.4/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.4-1+ubuntu24.04_all.deb"
+      ;;
+  esac
+
+  if [ -n "$release_url" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing official Zabbix repo..." | tee -a "$LOGFILE"
+    curl -fsSL "$release_url" -o /tmp/zabbix-release.deb >> "$LOGFILE" 2>&1 || true
+    if [ -f /tmp/zabbix-release.deb ]; then
+      dpkg -i /tmp/zabbix-release.deb >> "$LOGFILE" 2>&1 || true
+      rm -f /tmp/zabbix-release.deb
+    fi
+  fi
+
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Updating packages..." | tee -a "$LOGFILE"
   apt-get update -qq --allow-releaseinfo-change -o Acquire::Retries=2 >> "$LOGFILE" 2>&1 || echo "apt-get update finished with errors, continuing..." | tee -a "$LOGFILE"
 
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing zabbix-agent from system repos..." | tee -a "$LOGFILE"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing zabbix-agent from Zabbix repo..." | tee -a "$LOGFILE"
   apt-get install -y --no-install-recommends zabbix-agent zabbix-sender sudo >> "$LOGFILE" 2>&1
 }
 
