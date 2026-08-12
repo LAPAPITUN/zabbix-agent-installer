@@ -107,6 +107,7 @@ WGEOF
     chmod +x /usr/local/bin/wg-v2-peer-*.sh
     chown zabbix:zabbix /usr/local/bin/wg-v2-peer-*.sh
 
+    mkdir -p /etc/zabbix/zabbix_agentd.d
     cat > /etc/zabbix/zabbix_agentd.d/wg-peer.conf <<EOF
 UserParameter=wg.peer.discovery,sudo -u zabbix /usr/local/bin/wg-v2-peer-discovery.sh
 UserParameter=wg.peer.age[*],sudo -u zabbix /usr/local/bin/wg-v2-peer-age.sh \$1
