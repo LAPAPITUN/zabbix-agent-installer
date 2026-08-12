@@ -65,12 +65,28 @@ APTEOF
 
   if [ ! -f /etc/apt/sources.list.d/zabbix-official-repo.list ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: zabbix-official-repo.list not found after install, creating manually..." | tee -a "$LOGFILE"
-    if [ ! -s /usr/share/keyrings/zabbix-archive-keyring.gpg ]; then
+
+    local key_path=""
+    if [ -s /usr/share/keyrings/zabbix-archive-keyring.gpg ]; then
+      key_path="/usr/share/keyrings/zabbix-archive-keyring.gpg"
+    else
+      key_path="$(find /etc/apt/trusted.gpg.d /usr/share/keyrings -maxdepth 1 -name 'zabbix-*repo*.gpg' -print -quit 2>/dev/null || true)"
+    fi
+
+    if [ -n "$key_path" ] && [ -f "$key_path" ]; then
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] Using existing Zabbix key: ${key_path}" | tee -a "$LOGFILE"
+    else
       echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading Zabbix repo key..." | tee -a "$LOGFILE"
       curl -fsSL "https://repo.zabbix.com/zabbix/${zabbix_ver}/ubuntu/repokey/zabbix-archive-keyring.gpg" -o /usr/share/keyrings/zabbix-archive-keyring.gpg >> "$LOGFILE" 2>&1 || true
+      if [ ! -s /usr/share/keyrings/zabbix-archive-keyring.gpg ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: failed to download Zabbix repo key" | tee -a "$LOGFILE"
+        exit 1
+      fi
+      key_path="/usr/share/keyrings/zabbix-archive-keyring.gpg"
     fi
+
     cat > /etc/apt/sources.list.d/zabbix-official-repo.list <<EOF
-deb [signed-by=/usr/share/keyrings/zabbix-archive-keyring.gpg] https://repo.zabbix.com/zabbix/${zabbix_ver}/ubuntu ${codename} main
+deb [signed-by=${key_path}] https://repo.zabbix.com/zabbix/${zabbix_ver}/ubuntu ${codename} main
 EOF
   fi
 
@@ -84,16 +100,20 @@ EOF
   fi
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing zabbix-agent from Zabbix repo..." | tee -a "$LOGFILE"
-  apt-get install -y --no-install-recommends zabbix-agent zabbix-sender sudo >> "$LOGFILE" 2>&1
+  apt-get install -y --no-install-recommends -o DPkg::Options::='--force-confdef' -o DPkg::Options::='--force-confnew' zabbix-agent zabbix-sender sudo >> "$LOGFILE" 2>&1
 }
 
 configure_zabbix_agent() {
   local conf="/etc/zabbix/zabbix_agentd.conf"
 
   local server=""
-  printf "Введите IP Zabbix Server: " > /dev/tty 2>/dev/null || true
-  read -r server < /dev/tty 2>/dev/null || server=""
-  server="${server:-}"
+  if [ -n "${ZBX_SERVER:-}" ]; then
+    server="${ZBX_SERVER}"
+  else
+    printf "Введите IP Zabbix Server: " > /dev/tty 2>/dev/null || true
+    read -r server < /dev/tty 2>/dev/null || server=""
+    server="${server:-}"
+  fi
 
   local hostname
   hostname="$(hostname -f 2>/dev/null || hostname)"
@@ -124,8 +144,13 @@ CONF
   usermod -aG docker zabbix 2>/dev/null || true
 
   local install_wg=""
-  printf "Установить скрипты мониторинга WireGuard (wg-v2-peer-*)? (y/N): " > /dev/tty 2>/dev/null || true
-  read -r install_wg < /dev/tty 2>/dev/null || install_wg=""
+  if [ -n "${INSTALL_WG:-}" ]; then
+    install_wg="${INSTALL_WG}"
+  else
+    printf "Установить скрипты мониторинга WireGuard (wg-v2-peer-*)? (y/N): " > /dev/tty 2>/dev/null || true
+    read -r install_wg < /dev/tty 2>/dev/null || install_wg=""
+    install_wg="${install_wg:-}"
+  fi
 
   if [[ "${install_wg:-}" =~ ^[Yy]$ ]]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing WG scripts..." | tee -a "$LOGFILE"
