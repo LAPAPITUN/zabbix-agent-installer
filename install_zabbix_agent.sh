@@ -40,11 +40,15 @@ APTEOF
       ;;
   esac
 
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing official Zabbix repo..." | tee -a "$LOGFILE"
-  curl -fsSL "https://repo.zabbix.com/zabbix/7.4/ubuntu/repokey/zabbix-archive-keyring.gpg" -o /usr/share/keyrings/zabbix-archive-keyring.gpg >> "$LOGFILE" 2>&1
-  if [ ! -s /usr/share/keyrings/zabbix-archive-keyring.gpg ]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: failed to download Zabbix repo key" | tee -a "$LOGFILE"
-    exit 1
+  if [ -s /usr/share/keyrings/zabbix-archive-keyring.gpg ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Zabbix repo key already exists, skipping download." | tee -a "$LOGFILE"
+  else
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading Zabbix repo key..." | tee -a "$LOGFILE"
+    curl -fsSL --max-time 15 "https://repo.zabbix.com/zabbix/7.4/ubuntu/repokey/zabbix-archive-keyring.gpg" -o /usr/share/keyrings/zabbix-archive-keyring.gpg >> "$LOGFILE" 2>&1
+    if [ ! -s /usr/share/keyrings/zabbix-archive-keyring.gpg ]; then
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: failed to download Zabbix repo key" | tee -a "$LOGFILE"
+      exit 1
+    fi
   fi
 
   cat > /etc/apt/sources.list.d/zabbix-official-repo.list <<EOF
