@@ -8,6 +8,12 @@ One-shot installer for Ubuntu. Installs `zabbix-agent`, writes `zabbix_agentd.co
 curl -fsSL https://raw.githubusercontent.com/LAPAPITUN/zabbix-agent-installer/master/install_zabbix_agent.sh | sudo bash
 ```
 
+For non-interactive runs:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/LAPAPITUN/zabbix-agent-installer/master/install_zabbix_agent.sh | sudo ZBX_SERVER=1.2.3.4 INSTALL_WG=y bash
+```
+
 ## What it does
 
 - adds official Zabbix repo
@@ -21,25 +27,29 @@ curl -fsSL https://raw.githubusercontent.com/LAPAPITUN/zabbix-agent-installer/ma
 
 ```ini
 Server=<SERVER_ADDRESS>,127.0.0.1
+ServerActive=<SERVER_ADDRESS>
+Hostname=<HOSTNAME>
 StartAgents=3
 PidFile=/var/run/zabbix/zabbix_agentd.pid
 LogType=system
 DebugLevel=3
 
 AllowRoot=1
+EnableRemoteCommands=1
 User=zabbix
 Timeout=30
-DenyKey=system.run[*]
 
-UserParameter=timeweb_config_version,echo 127
+AllowKey=system.run[*]
 ```
 
-`<SERVER_ADDRESS>` — адрес основного Zabbix-сервера, который запрашивается у пользователя во время установки. Если адрес не указан, в конфиге остаётся только `Server=127.0.0.1`.
+`<SERVER_ADDRESS>` — address of the primary Zabbix server, asked during install or passed via `ZBX_SERVER` env var.
 
 ## Supported Ubuntu versions
 
-- `noble` / `resolute` — Zabbix 7.0
-- остальные — Zabbix 6.4
+- `noble` — Zabbix 7.0
+- `jammy` — Zabbix 7.0
+- `oracular` — Zabbix 7.0
+- other — fallback to Zabbix 7.0 for `noble`
 
 ## Log
 
