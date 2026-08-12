@@ -146,6 +146,11 @@ CONF
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Hostname: ${hostname}" | tee -a "$LOGFILE"
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Server: ${server}" | tee -a "$LOGFILE"
 
+  if ! grep -qE '^Include=.*zabbix_agentd\.d' "$conf" 2>/dev/null; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Enabling UserParameter includes..." | tee -a "$LOGFILE"
+    echo 'Include=/etc/zabbix/zabbix_agentd.d/*.conf' >> "$conf"
+  fi
+
   usermod -aG docker zabbix 2>/dev/null || true
 
   local install_wg=""
