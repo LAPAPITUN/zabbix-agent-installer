@@ -178,13 +178,23 @@ WGEOF
     cat > /usr/local/bin/wg-v2-peer-age.sh <<'WGEOF'
 #!/bin/bash
 PEER_IP="${1:-}"
-docker exec wg-easy wg show wg0 dump | awk -F'\t' -v ip="${PEER_IP}/32" '$4==ip {print int(systime()-$5)}'
+RESULT=$(docker exec wg-easy wg show wg0 dump | awk -F'\t' -v ip="${PEER_IP}/32" '$4==ip {print int(systime()-$5)}')
+if [ -z "$RESULT" ]; then
+    echo 999999
+else
+    echo "$RESULT"
+fi
 WGEOF
 
     cat > /usr/local/bin/wg-v2-peer-traffic.sh <<'WGEOF'
 #!/bin/bash
 PEER_IP="${1:-}"
-docker exec wg-easy wg show wg0 dump | awk -F'\t' -v ip="${PEER_IP}/32" '$4==ip {print $6+$7}'
+RESULT=$(docker exec wg-easy wg show wg0 dump | awk -F'\t' -v ip="${PEER_IP}/32" '$4==ip {print $6+$7}')
+if [ -z "$RESULT" ]; then
+    echo 0
+else
+    echo "$RESULT"
+fi
 WGEOF
 
     chmod +x /usr/local/bin/wg-v2-peer-*.sh
