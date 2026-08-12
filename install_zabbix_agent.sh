@@ -31,32 +31,25 @@ APTEOF
   codename="$(lsb_release -sc 2>/dev/null || echo unknown)"
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Detected Ubuntu codename: ${codename}" | tee -a "$LOGFILE"
 
-  local release_url=""
   case "$codename" in
-    noble)
-      release_url="https://repo.zabbix.com/zabbix/7.4/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.4-1+ubuntu24.04_all.deb"
-      ;;
-    jammy|oracular)
-      release_url="https://repo.zabbix.com/zabbix/7.4/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.4-1+ubuntu22.04_all.deb"
+    noble|jammy|oracular)
       ;;
     *)
-      release_url="https://repo.zabbix.com/zabbix/7.4/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.4-1+ubuntu24.04_all.deb"
+      codename="noble"
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] Unsupported codename, falling back to: ${codename}" | tee -a "$LOGFILE"
       ;;
   esac
 
-  if [ -n "$release_url" ]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing official Zabbix repo..." | tee -a "$LOGFILE"
-    curl -fsSL "$release_url" -o /tmp/zabbix-release.deb >> "$LOGFILE" 2>&1
-    if [ ! -f /tmp/zabbix-release.deb ]; then
-      echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: failed to download Zabbix repo package" | tee -a "$LOGFILE"
-      exit 1
-    fi
-    dpkg -i /tmp/zabbix-release.deb >> "$LOGFILE" 2>&1
-    rm -f /tmp/zabbix-release.deb
-  else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: unsupported Ubuntu codename: ${codename}" | tee -a "$LOGFILE"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing official Zabbix repo..." | tee -a "$LOGFILE"
+  curl -fsSL "https://repo.zabbix.com/zabbix/7.4/ubuntu/repokey/zabbix-archive-keyring.gpg" -o /usr/share/keyrings/zabbix-archive-keyring.gpg >> "$LOGFILE" 2>&1
+  if [ ! -s /usr/share/keyrings/zabbix-archive-keyring.gpg ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: failed to download Zabbix repo key" | tee -a "$LOGFILE"
     exit 1
   fi
+
+  cat > /etc/apt/sources.list.d/zabbix-official-repo.list <<EOF
+deb [signed-by=/usr/share/keyrings/zabbix-archive-keyring.gpg] https://repo.zabbix.com/zabbix/7.4/ubuntu ${codename} main
+EOF
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Updating packages..." | tee -a "$LOGFILE"
   apt-get update -qq --allow-releaseinfo-change -o Acquire::Retries=2 >> "$LOGFILE" 2>&1 || echo "apt-get update finished with errors, continuing..." | tee -a "$LOGFILE"
@@ -148,8 +141,8 @@ WGEOF
     mkdir -p /etc/zabbix/zabbix_agentd.d
     cat > /etc/zabbix/zabbix_agentd.d/wg-peer.conf <<EOF
 UserParameter=wg.peer.discovery,sudo -u zabbix /usr/local/bin/wg-v2-peer-discovery.sh
-UserParameter=wg.peer.age[*],sudo -u zabbix /usr/local/bin/wg-v2-peer-age.sh \$1
-UserParameter=wg.peer.traffic[*],sudo -u zabbix /usr/local/bin/wg-v2-peer-traffic.sh \$1
+UserParameter=wg.peer.age[*],sudo -u zabbix /usr/local/bin/wg-v2-peer-age.sh \\$1
+UserParameter=wg.peer.traffic[*],sudo -u zabbix /usr/local/bin/wg-v2-peer-traffic.sh \\$1
 EOF
 
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] WG scripts installed." | tee -a "$LOGFILE"
