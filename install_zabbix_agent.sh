@@ -54,11 +54,24 @@ APTEOF
       echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: failed to download Zabbix repo package" | tee -a "$LOGFILE"
       exit 1
     fi
-    dpkg -i /tmp/zabbix-release.deb >> "$LOGFILE" 2>&1
+    dpkg -i /tmp/zabbix-release.deb >> "$LOGFILE" 2>&1 || {
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: dpkg -i failed, will try manual repo setup" | tee -a "$LOGFILE"
+    }
     rm -f /tmp/zabbix-release.deb
   else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: unsupported Ubuntu codename: ${codename}" | tee -a "$LOGFILE"
     exit 1
+  fi
+
+  if [ ! -f /etc/apt/sources.list.d/zabbix-official-repo.list ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: zabbix-official-repo.list not found after install, creating manually..." | tee -a "$LOGFILE"
+    if [ ! -s /usr/share/keyrings/zabbix-archive-keyring.gpg ]; then
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading Zabbix repo key..." | tee -a "$LOGFILE"
+      curl -fsSL "https://repo.zabbix.com/zabbix/${zabbix_ver}/ubuntu/repokey/zabbix-archive-keyring.gpg" -o /usr/share/keyrings/zabbix-archive-keyring.gpg >> "$LOGFILE" 2>&1 || true
+    fi
+    cat > /etc/apt/sources.list.d/zabbix-official-repo.list <<EOF
+deb [signed-by=/usr/share/keyrings/zabbix-archive-keyring.gpg] https://repo.zabbix.com/zabbix/${zabbix_ver}/ubuntu ${codename} main
+EOF
   fi
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Updating packages..." | tee -a "$LOGFILE"
@@ -134,14 +147,14 @@ WGEOF
 
     cat > /usr/local/bin/wg-v2-peer-age.sh <<'WGEOF'
 #!/bin/bash
-PEER_IP="$1"
-docker exec wg-easy wg show wg0 dump | awk -F'\t' -v ip="$PEER_IP/32" '$4==ip {print int(systime()-$5)}'
+PEER_IP="${1:-}"
+docker exec wg-easy wg show wg0 dump | awk -F'\t' -v ip="${PEER_IP}/32" '$4==ip {print int(systime()-$5)}'
 WGEOF
 
     cat > /usr/local/bin/wg-v2-peer-traffic.sh <<'WGEOF'
 #!/bin/bash
-PEER_IP="$1"
-docker exec wg-easy wg show wg0 dump | awk -F'\t' -v ip="$PEER_IP/32" '$4==ip {print $6+$7}'
+PEER_IP="${1:-}"
+docker exec wg-easy wg show wg0 dump | awk -F'\t' -v ip="${PEER_IP}/32" '$4==ip {print $6+$7}'
 WGEOF
 
     chmod +x /usr/local/bin/wg-v2-peer-*.sh
