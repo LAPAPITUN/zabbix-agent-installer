@@ -12,8 +12,32 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+# Определяем версию Ubuntu (например, 22.04 или 24.04)
+get_ubuntu_version() {
+  if [[ -f /etc/os-release ]]; then
+    . /etc/os-release
+    if [[ "${ID:-}" == "ubuntu" ]]; then
+      echo "${VERSION_ID:-}"
+      return 0
+    fi
+  fi
+  if command -v lsb_release >/dev/null 2>&1; then
+    lsb_release -rs 2>/dev/null || true
+    return 0
+  fi
+  echo ""
+}
+
 install_zabbix_agent() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Removing external Zabbix repos..." | tee -a "$LOGFILE"
+  local ubuntu_ver
+  ubuntu_ver="$(get_ubuntu_version)"
+  if [[ -z "$ubuntu_ver" ]]; then
+    echo "ERROR: Cannot detect Ubuntu version" | tee -a "$LOGFILE"
+    exit 1
+  fi
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Detected Ubuntu version: $ubuntu_ver" | tee -a "$LOGFILE"
+
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Removing old Zabbix repos..." | tee -a "$LOGFILE"
   rm -f /etc/apt/sources.list.d/zabbix.list
   rm -f /etc/apt/sources.list.d/zabbix-official-repo.list
   rm -f /etc/apt/sources.list.d/timeweb-zabbix.list
@@ -27,10 +51,24 @@ Acquire::http::Pipeline-Depth "0";
 Acquire::http::No-Cache "true";
 APTEOF
 
+  # Устанавливаем официальный репозиторий Zabbix под текущую версию Ubuntu
+  local repo_deb_url="https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.0+ubuntu${ubuntu_ver}_all.deb"
+  local tmp_deb="/tmp/zabbix-release_ubuntu${ubuntu_ver}.deb"
+
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Downloading Zabbix repo package: $repo_deb_url" | tee -a "$LOGFILE"
+  if ! wget -q -O "$tmp_deb" "$repo_deb_url"; then
+    echo "ERROR: Failed to download Zabbix repo package. Check if version $ubuntu_ver is supported." | tee -a "$LOGFILE"
+    exit 1
+  fi
+
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing Zabbix repo package..." | tee -a "$LOGFILE"
+  dpkg -i "$tmp_deb" >> "$LOGFILE" 2>&1 || apt-get install -f -y >> "$LOGFILE" 2>&1
+  rm -f "$tmp_deb"
+
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Updating packages..." | tee -a "$LOGFILE"
   apt-get update -qq --allow-releaseinfo-change -o Acquire::Retries=2 >> "$LOGFILE" 2>&1 || echo "apt-get update finished with errors, continuing..." | tee -a "$LOGFILE"
 
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing zabbix-agent from system repos..." | tee -a "$LOGFILE"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing zabbix-agent from official repo..." | tee -a "$LOGFILE"
   apt-get install -y --no-install-recommends zabbix-agent zabbix-sender sudo >> "$LOGFILE" 2>&1
 }
 
