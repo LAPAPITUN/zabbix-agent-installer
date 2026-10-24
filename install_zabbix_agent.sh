@@ -181,12 +181,35 @@ show_logs() {
   tail -n 200 "$LOGFILE" 2>/dev/null | tee -a "$LOGFILE" || true
 }
 
+# Показывает Hostname из файла конфига агента
+show_hostname_from_config() {
+  local conf="/etc/zabbix/zabbix_agentd.conf"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Hostname from config ($conf) ===" | tee -a "$LOGFILE"
+  if [[ -f "$conf" ]]; then
+    local hn
+    hn="$(grep -E '^[[:space:]]*Hostname[[:space:]]*=' "$conf" | tail -n1 | sed -E 's/^[[:space:]]*Hostname[[:space:]]*=[[:space:]]*//')"
+    echo "Hostname=${hn:-<not set>}" | tee -a "$LOGFILE"
+  else
+    echo "Config file $conf not found" | tee -a "$LOGFILE"
+  fi
+}
+
 main() {
   install_zabbix_agent
   configure_zabbix_agent
   open_zabbix_port
   restart_zabbix_agent
   show_logs
+
+  # Вывод Hostname из конфига
+  show_hostname_from_config
+
+  # Через 30 секунд — повторный перезапуск агента
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Waiting 30 seconds before second restart..." | tee -a "$LOGFILE"
+  sleep 30
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Second restart of zabbix-agent..." | tee -a "$LOGFILE"
+  restart_zabbix_agent
+
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Zabbix Agent installer finished ===" | tee -a "$LOGFILE"
 }
 
